@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useUser } from "@clerk/nextjs";
 import Header from "@/components/Header";
 import NowPlaying from "@/components/NowPlaying";
 import UpNext, { UpNextItem } from "@/components/UpNext";
@@ -21,10 +22,10 @@ function getOrCreateClientId(): string {
 }
 
 export default function Page() {
+  const { user } = useUser();
   const [room, setRoom] = useState<RoomResponse | null>(null);
   const [displayedElapsed, setDisplayedElapsed] = useState(0);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [name, setName] = useState("");
 
   const clientIdRef = useRef<string>("");
   const baseRef = useRef({ elapsed: 0, timestamp: Date.now() });
@@ -33,16 +34,16 @@ export default function Page() {
 
   useEffect(() => {
     clientIdRef.current = getOrCreateClientId();
-    const savedName = window.localStorage.getItem("lt_name");
-    if (savedName) setName(savedName);
   }, []);
+
+  const presenceName = user?.fullName || user?.username || "Listener";
 
   const fetchRoom = useCallback(async () => {
     try {
       const res = await fetch("/api/room", {
         headers: {
           "x-client-id": clientIdRef.current,
-          "x-client-name": name,
+          "x-client-name": presenceName,
         },
         cache: "no-store",
       });
@@ -58,7 +59,7 @@ export default function Page() {
     } catch {
       // Network hiccup — the next poll will retry.
     }
-  }, [name]);
+  }, [presenceName]);
 
   const fetchChat = useCallback(async () => {
     try {
@@ -100,17 +101,12 @@ export default function Page() {
     return () => clearInterval(interval);
   }, [room?.track]);
 
-  function handleSetName(newName: string) {
-    setName(newName);
-    window.localStorage.setItem("lt_name", newName);
-  }
-
   async function handleSend(text: string) {
     try {
       await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, text }),
+        body: JSON.stringify({ text }),
       });
       fetchChat();
     } catch {
@@ -187,8 +183,6 @@ export default function Page() {
             messages={messages}
             listeners={room?.listeners ?? []}
             listenerCount={room?.listenerCount ?? 0}
-            name={name}
-            onSetName={handleSetName}
             onSend={handleSend}
           />
         </aside>

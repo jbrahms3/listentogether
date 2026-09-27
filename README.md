@@ -24,7 +24,11 @@ together, plus a room to talk about it.
   free and need no API key. A YouTube link is added too if you set
   `YOUTUBE_API_KEY` (a free Google Cloud API key).
 - **Chat** is a simple polling endpoint (`/api/chat`) backed by the same
-  in-memory store — no accounts, just a display name kept in `localStorage`.
+  in-memory store. Posting a message requires a **Clerk** account — the
+  server checks `auth()` in the route handler and derives the display name
+  from the signed-in user itself (never trusting a client-supplied name), so
+  messages can't be spoofed. Viewing the room and the track queue stays open
+  to everyone; only sending a chat message requires signing in.
 
 State lives in memory on the server process, so it resets on restart. That's
 intentional for a lightweight shared room; swap `lib/store.ts` for a real
@@ -32,23 +36,28 @@ database if you need it to persist.
 
 ## Setup
 
-1. Create a Spotify app at the
+1. Create a free application at the
+   [Clerk Dashboard](https://dashboard.clerk.com) — any sign-in method
+   (email, Google, etc.) works out of the box with no extra configuration.
+   Copy its **Publishable key** and **Secret key** from the dashboard's
+   "API keys" page.
+2. Create a Spotify app at the
    [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) —
    no redirect URI is needed, this only uses the Client Credentials flow.
-2. Copy the env file and fill in your credentials:
+3. Copy the env file and fill in your credentials:
 
    ```bash
    cp .env.local.example .env.local
    ```
 
-3. Install dependencies and run the dev server:
+4. Install dependencies and run the dev server:
 
    ```bash
    npm install
    npm run dev
    ```
 
-4. Open http://localhost:3000. On first load the room seeds itself by
+5. Open http://localhost:3000. On first load the room seeds itself by
    searching Spotify for a handful of classical pieces (see
    `DEFAULT_SEED_QUERIES` in `lib/store.ts`) — or set `SEED_TRACK_IDS` in
    `.env.local` to a comma-separated list of Spotify track IDs to start with

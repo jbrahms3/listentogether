@@ -1,5 +1,7 @@
 "use client";
 
+import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
+
 const NAV_ITEMS = ["Listening Room", "Upcoming", "Library"];
 
 export default function Header({ listenerCount }: { listenerCount: number }) {
@@ -51,17 +53,24 @@ export default function Header({ listenerCount }: { listenerCount: number }) {
           </svg>
           <span>{listenerCount}</span>
         </div>
-        <span className="flex h-9 w-9 items-center justify-center rounded-full border border-line">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <circle cx="12" cy="8" r="3.4" stroke="#1a1a1a" strokeWidth="1.3" />
-            <path
-              d="M4.5 20c1.4-4 4.2-6 7.5-6s6.1 2 7.5 6"
-              stroke="#1a1a1a"
-              strokeWidth="1.3"
-              strokeLinecap="round"
-            />
-          </svg>
-        </span>
+        <SignedIn>
+          <UserButton afterSignOutUrl="/" />
+        </SignedIn>
+        <SignedOut>
+          <SignInButton mode="modal">
+            <button className="flex h-9 w-9 items-center justify-center rounded-full border border-line hover:border-ink/40">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <circle cx="12" cy="8" r="3.4" stroke="#1a1a1a" strokeWidth="1.3" />
+                <path
+                  d="M4.5 20c1.4-4 4.2-6 7.5-6s6.1 2 7.5 6"
+                  stroke="#1a1a1a"
+                  strokeWidth="1.3"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </SignInButton>
+        </SignedOut>
       </div>
     </header>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { SignInButton, useUser } from "@clerk/nextjs";
 import { ChatMessage } from "@/lib/types";
 import { colorForName, initialFor } from "@/lib/format";
 
@@ -8,20 +9,16 @@ export default function ChatPanel({
   messages,
   listeners,
   listenerCount,
-  name,
-  onSetName,
   onSend,
 }: {
   messages: ChatMessage[];
   listeners: { name: string }[];
   listenerCount: number;
-  name: string;
-  onSetName: (name: string) => void;
   onSend: (text: string) => void;
 }) {
+  const { isSignedIn, isLoaded } = useUser();
   const [tab, setTab] = useState<"chat" | "listeners">("chat");
   const [draft, setDraft] = useState("");
-  const [nameDraft, setNameDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,13 +33,6 @@ export default function ChatPanel({
     if (!text) return;
     onSend(text);
     setDraft("");
-  }
-
-  function handleNameSubmit(e: FormEvent) {
-    e.preventDefault();
-    const n = nameDraft.trim();
-    if (!n) return;
-    onSetName(n);
   }
 
   return (
@@ -96,7 +86,7 @@ export default function ChatPanel({
             ))}
           </div>
 
-          {name ? (
+          {!isLoaded ? null : isSignedIn ? (
             <form onSubmit={handleSubmit} className="flex items-center gap-2 border-t border-line p-5">
               <input
                 value={draft}
@@ -117,23 +107,14 @@ export default function ChatPanel({
               </button>
             </form>
           ) : (
-            <form onSubmit={handleNameSubmit} className="flex items-center gap-2 border-t border-line p-5">
-              <input
-                value={nameDraft}
-                onChange={(e) => setNameDraft(e.target.value)}
-                placeholder="Your name, to join the chat…"
-                className="flex-1 rounded-full border border-line bg-paper px-4 py-2.5 text-sm outline-none focus:border-ink/40"
-                maxLength={40}
-                autoFocus
-              />
-              <button
-                type="submit"
-                disabled={!nameDraft.trim()}
-                className="shrink-0 rounded-full bg-ink px-5 py-2.5 text-sm text-paper disabled:opacity-40"
-              >
-                Join
-              </button>
-            </form>
+            <div className="flex items-center justify-between gap-3 border-t border-line p-5">
+              <p className="text-sm text-muted">Sign in to join the conversation.</p>
+              <SignInButton mode="modal">
+                <button className="shrink-0 rounded-full bg-ink px-5 py-2.5 text-sm text-paper">
+                  Sign in to chat
+                </button>
+              </SignInButton>
+            </div>
           )}
         </>
       ) : (
