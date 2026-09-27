@@ -11,11 +11,14 @@ together, plus a room to talk about it.
 - **Spotify Web API** (Client Credentials flow) supplies the track/album
   metadata for the "now playing" card and the queue — no user login needed,
   since the app never plays audio itself.
-- A small in-memory **room** on the server holds the shared queue and a
+- The **room** ([lib/store.ts](lib/store.ts)) holds the shared queue and a
   `startedAt` timestamp; every client polls `/api/room` every few seconds and
   computes the same elapsed time and progress bar from that timestamp, which
   is what keeps everyone in sync. When a track's duration has elapsed, the
-  server rotates it to the back of the queue and starts the next one.
+  server rotates it to the back of the queue and starts the next one. Set
+  `REDIS_URL` to back this with Redis instead of in-process memory — needed
+  as soon as this runs as more than one instance (see "Scaling" below);
+  without it, an in-memory fallback is used automatically for local dev.
 - **Cross-platform links** ([lib/links.ts](lib/links.ts)) are built directly
   from each service's own public API rather than a third-party aggregator:
   Deezer's `/track/isrc:<isrc>` endpoint does an exact match on the track's
@@ -30,9 +33,9 @@ together, plus a room to talk about it.
   messages can't be spoofed. Viewing the room and the track queue stays open
   to everyone; only sending a chat message requires signing in.
 
-State lives in memory on the server process, so it resets on restart. That's
-intentional for a lightweight shared room; swap `lib/store.ts` for a real
-database if you need it to persist.
+Without Redis, state lives in memory on the server process and resets on
+restart — fine for a single local instance, not for anything deployed at
+scale (see below).
 
 ## Setup
 
@@ -68,6 +71,31 @@ also want a YouTube link, create a free API key at the
 [Google Cloud Console](https://console.cloud.google.com/apis/library/youtube.googleapis.com)
 (enable the YouTube Data API v3, then create an API key) and set
 `YOUTUBE_API_KEY` in `.env.local`.
+
+## Scaling
+
+By default, the room queue, chat, and presence live in the memory of a
+single server process — fine for one instance, broken across more than one
+(each replica would seed its own queue and run its own timer, and chat
+posted to one instance wouldn't show up on another). Setting `REDIS_URL`
+switches `lib/store.ts` over to Redis so all instances share one source of
+truth:
+
+- The queue is a Redis list; chat messages and presence are sorted sets
+  (scored by timestamp / last-seen), so range queries like "messages since
+  X" or "listeners active in the last 20s" stay cheap.
+- Advancing the queue when a track finishes runs through a small Lua script
+  (`advanceIfElapsed` in [lib/redis.ts](lib/redis.ts)) so it's atomic — two
+  instances polling at the same moment can't both rotate the queue and skip
+  an extra track.
+- Seeding the room on first boot is guarded by a short-lived Redis lock so
+  multiple instances starting at once don't all search Spotify and race to
+  populate the queue.
+
+On Railway, this is a "Redis" template deployed into the same project, with
+`REDIS_URL` added to the app service as a reference variable
+(`${{ Redis.REDIS_URL }}`) so it always points at the current instance. It
+uses Railway's private network, not a public endpoint.
 
 ## Notes
 

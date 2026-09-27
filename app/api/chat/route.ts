@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const since = req.nextUrl.searchParams.get("since");
-  const messages = since ? getMessagesSince(Number(since)) : getAllMessages();
+  const messages = since ? await getMessagesSince(Number(since)) : await getAllMessages();
   return NextResponse.json({ messages, serverTime: Date.now() });
 }
 
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Sign in to chat." }, { status: 401 });
     }
 
-    const message = addMessage(displayNameFor(user), text);
+    const message = await addMessage(displayNameFor(user), text);
     return NextResponse.json({ message });
   } catch (err: any) {
     return NextResponse.json(

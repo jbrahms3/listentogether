@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getTrack, getTracks, searchTrack } from "@/lib/spotify";
 import { getListenLinks } from "@/lib/links";
 import {
-  advanceQueue,
+  advanceIfElapsed,
   ensureSeeded,
   enqueueTrack,
   getActiveListeners,
-  getRoom,
+  getQueue,
+  getStartedAt,
   touchPresence,
 } from "@/lib/store";
 
@@ -15,13 +16,13 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   try {
     await ensureSeeded();
-    const room = getRoom();
 
     const clientId = req.headers.get("x-client-id");
     const clientName = req.headers.get("x-client-name") ?? undefined;
-    if (clientId) touchPresence(clientId, clientName);
 
-    if (room.queue.length === 0) {
+    let queue = await getQueue();
+
+    if (queue.length === 0) {
       return NextResponse.json({
         track: null,
         elapsedMs: 0,
@@ -35,25 +36,26 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    let track = await getTrack(room.queue[0]);
-    let elapsedMs = Date.now() - room.startedAt;
+    let track = await getTrack(queue[0]);
 
     // Advance through the queue if the current track has finished, in case
     // no one has polled in a while (e.g. server idle, or a long track ended).
     let guard = 0;
-    while (elapsedMs >= track.durationMs && guard < room.queue.length + 1) {
-      advanceQueue(room);
-      track = await getTrack(room.queue[0]);
-      elapsedMs = Date.now() - room.startedAt;
+    while (guard < queue.length + 1) {
+      const advanced = await advanceIfElapsed(track.durationMs);
+      if (!advanced) break;
+      queue = await getQueue();
+      track = await getTrack(queue[0]);
       guard++;
     }
 
-    const listenerCount = Math.max(touchPresence(clientId ?? "anonymous", clientName), 1);
-    const listeners = getActiveListeners();
+    const elapsedMs = Date.now() - (await getStartedAt());
+    const listenerCount = Math.max(await touchPresence(clientId ?? "anonymous", clientName), 1);
+    const listeners = await getActiveListeners();
 
     const [links, upNext] = await Promise.all([
       getListenLinks(track),
-      getTracks(room.queue.slice(1, 4)),
+      getTracks(queue.slice(1, 4)),
     ]);
 
     return NextResponse.json({
@@ -84,7 +86,7 @@ export async function POST(req: NextRequest) {
     if (!track) {
       return NextResponse.json({ error: "No track found for that search." }, { status: 404 });
     }
-    enqueueTrack(track.id);
+    await enqueueTrack(track.id);
     return NextResponse.json({ track });
   } catch (err: any) {
     return NextResponse.json(
