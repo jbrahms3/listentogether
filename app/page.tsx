@@ -152,7 +152,7 @@ export default function Page() {
     <div className="mx-auto min-h-screen max-w-[1480px]">
       <Header listenerCount={room?.listenerCount ?? 0} />
 
-      <main className="grid grid-cols-1 gap-10 px-6 py-10 sm:px-10 lg:grid-cols-[1fr_400px] lg:gap-14 lg:py-14">
+      <main className="grid grid-cols-1 gap-10 px-6 py-10 sm:px-10 lg:grid-cols-[1fr_400px] lg:items-start lg:gap-14 lg:py-14">
         <section>
           {room?.error && (
             <div className="mb-6 rounded-2xl border border-line bg-white/50 p-5 text-sm text-muted">
@@ -178,7 +178,7 @@ export default function Page() {
           </div>
         </section>
 
-        <aside className="h-[640px] lg:h-auto">
+        <aside className="h-[640px] lg:sticky lg:top-24 lg:h-[calc(100vh-7rem)]">
           <ChatPanel
             messages={messages}
             listeners={room?.listeners ?? []}
