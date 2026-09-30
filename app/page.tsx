@@ -178,7 +178,7 @@ export default function Page() {
           </div>
         </section>
 
-        <aside className="h-[640px] lg:sticky lg:top-24 lg:h-[calc(100vh-7rem)]">
+        <aside className="h-[640px] lg:sticky lg:top-24 lg:h-[calc(100vh-9.5rem)]">
           <ChatPanel
             messages={messages}
             listeners={room?.listeners ?? []}
